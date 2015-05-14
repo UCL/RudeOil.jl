@@ -1,5 +1,20 @@
+module RudeOilTests
 using RudeOil
-using Base.Test
+using FactCheck: facts, context, @fact, greater_than
 
-# write your own tests here
-@test 1 == 1
+#= include("machine.jl") =#
+
+
+const machine = Machine("ThisIsARUDEOILTestMachineThatShouldNotExist")
+try
+  # Use same machine for all tests.
+  # Cos takes time to create
+  startoff(machine)
+
+  include("env.jl")
+
+
+finally
+  # remove!(machine)
+end
+end

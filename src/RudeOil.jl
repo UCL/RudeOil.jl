@@ -1,5 +1,6 @@
 module RudeOil
 
-# package code goes here
+include("machine.jl")
+include("env.jl")
 
 end # module
