@@ -1,9 +1,12 @@
 module RudeOilTests
 using RudeOil
-using FactCheck: facts, context, @fact, greater_than
+using FactCheck: facts, context, @fact, greater_than, not
+
+import Base: ismatch
+ismatch(regex::String) = x -> ismatch(Regex(regex), x)
+contains(item) = x -> item ∈ x
 
 #= include("machine.jl") =#
-
 
 const machine = Machine("ThisIsARUDEOILTestMachineThatShouldNotExist")
 try
@@ -12,6 +15,7 @@ try
   startoff(machine)
 
   include("env.jl")
+  include("image.jl")
 
 
 finally

@@ -5,6 +5,7 @@ type Machine
 end
 
 const docker_machine = "docker-machine"
+const docker = "docker"
 
 function Machine(name; vm="virtualbox", create=true, start=true)
   result = Machine(name)
