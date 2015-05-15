@@ -48,6 +48,8 @@ facts("Containers") do
     context("Hello World") do
       result = vm |> Container() |> `echo "Hello World"` |> readchomp
       @fact result => "Hello World"
+      result = vm |> `echo "Hello World"` |> readchomp
+      @fact result => "Hello World"
     end
 
     context("With Image") do
