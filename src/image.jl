@@ -1,9 +1,13 @@
-export Image, dockerfile
+export image, dockerfile
 
 abstract AbstractImage
 type Image <: AbstractImage
   name::String
-  base::String
+end
+
+type BuildImage <: AbstractImage
+  name::String
+  base::AbstractImage
 
   volumes::Vector{String}
   workdir::String
@@ -24,11 +28,7 @@ const DEFAULT_IMAGE = convert(Dict{Symbol, Any}, {
   :rm => true
 })
 
-function Image(name::String, base::String="ubuntu:14.04"; kwargs...)
-  if length(base) == ""
-    error("Base cannot be empty")
-  end
-
+function BuildImage(name::String, base::AbstractImage; kwargs...)
   # Treat volume separately
   volumes = Util.getarg(:volumes, kwargs, DEFAULT_IMAGE)
   for (vol, path) in filter(x -> x[1] == :volume, kwargs)
@@ -41,14 +41,29 @@ function Image(name::String, base::String="ubuntu:14.04"; kwargs...)
     error("Keyword arguments, other than volume should be unique")
   end
 
-  Image(
+  BuildImage(
     name, base, unique(volumes),
-    map(x -> Util.getarg(x, kwargs, DEFAULT_IMAGE), names(Image)[4:end])...
+    map(x -> Util.getarg(x, kwargs, DEFAULT_IMAGE), names(BuildImage)[4:end])...
   )
 end
 
-function dockerfile(image::Image)
-    result = "FROM $(image.base)\n" * "RUN apt-get update\n"
+function BuildImage(name::String, base::String="ubuntu:14.04"; kwargs...)
+  if length(base) == ""
+    error("Base cannot be empty")
+  end
+  BuildImage(name, Image(base); kwargs...)
+end
+
+function image(name::String, args...; kwargs...)
+  if length(args) != 0 || length(kwargs) != 0
+    BuildImage(name, args...; kwargs...)
+  else
+    Image(name)
+  end
+end
+
+function dockerfile(image::BuildImage)
+    result = "FROM $(image.base.name)\n" * "RUN apt-get update\n"
     if length(image.packages) > 0
         let packages = [match(r"[^\( ]+", u).match for u in image.packages]
           result = result *"RUN apt-get install -y $(join(packages, " "))\n"
@@ -75,27 +90,50 @@ function dockerfile(image::Image)
     result
 end
 
-|> (machine::MachineEnv, image::Image) = (machine, image)
-function impl_run(func::Function, machine::MachineEnv, image::Image)
+|> (machine::MachineEnv, image::AbstractImage) = (machine, image)
+function |> (parent::AbstractImage, child::BuildImage)
+  result = deepcopy(child)
+  result.base = parent
+  result
+end
+function |> (parents::(MachineEnv, AbstractImage), child::BuildImage)
+  parents[1] |> (parents[2] |> child)
+end
+
+function command_impl(machine::MachineEnv, image::BuildImage)
   rmargs = if image.rm "--rm=true" else "" end
   name = if length(image.name) > 0 "--tag=\"$(image.name)\"" else "" end
   # File needs to be in context... there is no good way to get a temp file in a specific dir yet, it
   # seems.
   imagefile = abspath("." * basename(tempname()))
-  try
-    open(imagefile, "w") do file
-      write(file, dockerfile(image))
-    end
-    filename = "--file=\"$(basename(imagefile))\""
-    path = dirname(imagefile)
-    return command(machine, "build", "$rmargs  $name $filename $path") |> func
-  finally
-    (!isfile(imagefile)) || rm(imagefile)
+  open(imagefile, "w") do file
+    write(file, dockerfile(image))
+  end
+  filename = "--file=\"$(basename(imagefile))\""
+  path = dirname(imagefile)
+  cmd = command(machine, "build", "$rmargs  $name $filename $path")
+  if isa(image.base, BuildImage)
+    cmds, files = command_impl(machine, image.base)
+    [cmds..., cmd], [files..., imagefile]
+  else
+    [cmd], [imagefile]
   end
 end
-run(inputs::(MachineEnv, Image)) = run(inputs[1], inputs[2])
-run(machine::MachineEnv, image::Image) = impl_run(run, machine, image)
-readchomp(inputs::(MachineEnv, Image)) = readchomp(inputs[1], inputs[2])
-readchomp(machine::MachineEnv, image::Image) = impl_run(readchomp, machine, image)
-readall(inputs::(MachineEnv, Image)) = readall(inputs[1], inputs[2])
-readall(machine::MachineEnv, image::Image) = impl_run(readall, machine, image)
+
+function command_impl(func::Function, machine::MachineEnv, image::BuildImage)
+  cmds, files = command_impl(machine, image)
+  try
+    return cmds |> func
+  finally
+    for imagefile in files
+      (!isfile(imagefile)) || rm(imagefile)
+    end
+  end
+end
+
+run(inputs::(MachineEnv, BuildImage)) = run(inputs[1], inputs[2])
+run(machine::MachineEnv, image::BuildImage) = command_impl(run, machine, image)
+readchomp(inputs::(MachineEnv, BuildImage)) = readchomp(inputs[1], inputs[2])
+readchomp(machine::MachineEnv, image::BuildImage) = command_impl(readchomp, machine, image)
+readall(inputs::(MachineEnv, BuildImage)) = readall(inputs[1], inputs[2])
+readall(machine::MachineEnv, image::BuildImage) = command_impl(readall, machine, image)

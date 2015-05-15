@@ -6,10 +6,18 @@ function run(tuple::(Cmd, String, Base.AsyncStream))
         write(stream, tuple[2])
     end
 end
-function run(cmds::Vector)
+function run(cmds::Vector{Cmd})
   for cmd in cmds
     run(cmd)
   end
+end
+readchomp(cmds::Vector{Cmd}) = chomp(readall(cmds))
+function readall(cmds::Vector{Cmd})
+  result = ""
+  for cmd in cmds
+    result = result * readall(cmd)
+  end
+  result
 end
 
 include("util.jl")
