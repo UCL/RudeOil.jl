@@ -105,7 +105,7 @@ function command_impl(machine::MachineEnv, image::BuildImage)
   name = if length(image.name) > 0 "--tag=\"$(image.name)\"" else "" end
   # File needs to be in context... there is no good way to get a temp file in a specific dir yet, it
   # seems.
-  imagefile = abspath("." * basename(tempname()))
+  imagefile = Util.heretempfile()
   open(imagefile, "w") do file
     write(file, dockerfile(image))
   end

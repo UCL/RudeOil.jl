@@ -24,5 +24,6 @@ include("util.jl")
 include("machine.jl")
 include("env.jl")
 include("image.jl")
+include("container.jl")
 
 end # module

@@ -7,5 +7,14 @@ module Util
     if !haskey(defaults, s); error("Unknown keyword argument $s"); end
     deepcopy(defaults[s])
   end
+
+  function heretempfile(prefix::String="")
+    newname() = abspath(joinpath(prefix, basename(tempname())))
+    filename = newname()
+    while ispath(filename)
+      filename = newname()
+    end
+    filename
+  end
 end
 using .Util

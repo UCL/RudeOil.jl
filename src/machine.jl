@@ -33,10 +33,10 @@ function startoff(machine::Machine; vm="virtualbox")
   else
     run(`$docker_machine create -d $vm $(machine.name)`)
   end
-  activate(machine)
+  activate_impl(machine)
 end
 
-activate(machine::Machine) = run(`$docker_machine active $(machine.name)`)
+activate_impl(machine::Machine) = run(`$docker_machine active $(machine.name)`)
 
 function remove!(machine::Machine)
   if exists(machine)
@@ -48,6 +48,6 @@ function config(machine::Machine)
   if !exists(machine)
     error("machine $(machine.name) does not exist")
   end
-  activate(machine)
+  activate_impl(machine)
   readchomp(`$docker_machine config $(machine.name)`)
 end
