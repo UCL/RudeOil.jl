@@ -89,15 +89,18 @@ function command(machine::MachineEnv, container::Container, cmd::Cmd=``)
   `$result $cmd`
 end
 
-|> (machine::MachineEnv, container::AbstractContainer) = (machine, container)
-|> (env::(MachineEnv, AbstractContainer), cmd::Cmd) = (env[1], env[2], cmd)
+|>(machine::MachineEnv, container::AbstractContainer) = (machine, container)
+|>(env::(MachineEnv, AbstractContainer), cmd::Union(Cmd, Vector{Cmd})) = (env[1], env[2], cmd)
 function |> (image::AbstractImage, container::AbstractContainer)
   result = deepcopy(container)
   result.image = image
   result
 end
 |> (env::(MachineEnv, AbstractImage), cont::AbstractContainer) = (env[1], env[2] |> cont)
-|> (env::(MachineEnv, AbstractImage), cmd::Cmd) = (env[1], Container(env[2]), cmd)
+function |>(env::(MachineEnv, AbstractImage), cmd::Union(Cmd, Vector{Cmd}))
+  env[1], Container(env[2]), cmd
+end
+|> (env::MachineEnv, cmd::Union(Cmd, Vector{Cmd})) = (env, Container(), cmd)
 
 function command_impl(func::Function, vm::MachineEnv, container::Container, cmd::Cmd)
   if isa(container.image, BuildImage)
@@ -106,6 +109,7 @@ function command_impl(func::Function, vm::MachineEnv, container::Container, cmd:
   command(vm, container, cmd) |> func
 end
 
+
 for runner in [:run, :readchomp, :readall]
   @eval begin
     $runner(cmd::(MachineEnv, Container, Cmd)) = command_impl($runner, cmd[1], cmd[2], cmd[3])
@@ -113,3 +117,31 @@ for runner in [:run, :readchomp, :readall]
     $runner(vm::MachineEnv, cont::Container, cmd::Cmd=``) = command_impl($runner, vm, cont, cmd)
   end
 end
+
+function bash(cmd::Cmd)
+  result = ""
+  # Adds environment variable
+  if !is(cmd.env, nothing)
+    result *= join(cmd.env, "\n")
+  end
+  # Move to workdir
+  if length(cmd.dir) > 0
+    result *= "cd $(cmd.dir)\n"
+  end
+  # Add command
+  result *= "$(`$cmd`)"[2:end-1] * "\n"
+  result
+end
+function run(vm::MachineEnv, container::Container, cmds::Vector{Cmd})
+  if isa(container.image, BuildImage)
+    vm |> container.image |> run
+  end
+  container = deepcopy(container)
+  container.interactive = true
+  open(command(vm, container), "w", STDOUT) do stream
+    for cmd in cmds
+      write(stream, bash(cmd))
+    end
+  end
+end
+run(cmd::(MachineEnv, Container, Vector{Cmd})) = run(cmd[1], cmd[2], cmd[3])
