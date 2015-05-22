@@ -5,7 +5,7 @@ facts("Images") do
     @fact pic.volumes => ["/a", "/b"]
 
     for name in names(RudeOil.BuildImage)
-      if name != :name && name != :base && name != :volumes
+      if name ∉ [:name, :base, :volumes, :ppas]
         @fact getfield(pic, name) => RudeOil.DEFAULT_IMAGE[name]
       end
     end

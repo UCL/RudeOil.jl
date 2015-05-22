@@ -101,6 +101,7 @@ function |>(env::(MachineEnv, AbstractImage), cmd::Union(Cmd, Vector{Cmd}))
   env[1], Container(env[2]), cmd
 end
 |> (env::MachineEnv, cmd::Union(Cmd, Vector{Cmd})) = (env, Container(), cmd)
+|> (m::MachineEnv, c::(Container, Union(Cmd, Vector{Cmd}))) = (m, c[1], c[2])
 
 function command_impl(func::Function, vm::MachineEnv, container::Container, cmd::Cmd)
   if isa(container.image, BuildImage)

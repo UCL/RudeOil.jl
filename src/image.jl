@@ -10,8 +10,9 @@ type BuildImage <: AbstractImage
   base::AbstractImage
 
   volumes::Vector{String}
+  ppas::Vector
   workdir::String
-  env::Dict{Symbol, String}
+  env::Dict
   packages::Vector{String}
   pips::Vector{String}
   args::Vector{String}
@@ -21,7 +22,7 @@ end
 const DEFAULT_IMAGE = convert(Dict{Symbol, Any}, {
   :volumes => String[],
   :workdir => "",
-  :env => Dict{Symbol, String}(),
+  :env => Dict(),
   :packages => String[],
   :pips => String[],
   :args => String[],
@@ -36,14 +37,17 @@ function BuildImage(name::String, base::AbstractImage; kwargs...)
   end
   filter!(x -> x[1] != :volume, kwargs)
 
+  ppas = [ppa for (key, ppa) in filter(x -> x[1] == :ppa, kwargs)]
+  filter!(x -> x[1] != :ppa, kwargs)
+
   # Remove special keyword arg volumes
   if length(kwargs) !=(map(x->x[1], kwargs) |> unique |> length)
     error("Keyword arguments, other than volume should be unique")
   end
 
   BuildImage(
-    name, base, unique(volumes),
-    map(x -> Util.getarg(x, kwargs, DEFAULT_IMAGE), names(BuildImage)[4:end])...
+    name, base, unique(volumes), ppas,
+    map(x -> Util.getarg(x, kwargs, DEFAULT_IMAGE), names(BuildImage)[5:end])...
   )
 end
 
@@ -63,7 +67,13 @@ function image(name::String, args...; kwargs...)
 end
 
 function dockerfile(image::BuildImage)
-    result = "FROM $(image.base.name)\n" * "RUN apt-get update\n"
+    result = "FROM $(image.base.name)\n"
+    result *= "RUN apt-get update\n"
+    if length(image.ppas) > 0
+      ppas = join(["add-apt-repository ppa:" * n for n in image.ppas], "\\\n    && ")
+      packages = "software-properties-common python-software-properties"
+      result *= "RUN apt-get install -y $packages \\\n    && $ppas \\\n    && apt-get update\n"
+    end
     if length(image.packages) > 0
         let packages = [match(r"[^\( ]+", u).match for u in image.packages]
           result = result *"RUN apt-get install -y $(join(packages, " "))\n"

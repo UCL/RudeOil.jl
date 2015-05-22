@@ -1,15 +1,19 @@
 export activate
-type MachineEnv
-  machine::Machine
+
+abstract AbstractMachineEnv
+type MachineEnv <: AbstractMachineEnv
+  machine::AbstractMachine
   config::String
 end
 
 function command(machine::MachineEnv, command::String, args::String="")
+  activate_impl(machine.machine)
   `$docker $(split(machine.config)) $command $(split(args))`
 end
 
-function activate(func::Function, machine::Machine; delete=false, halt=false)
-  result = func(activate(machine))
+function activate(func::Function, machine::AbstractMachine; delete=false, halt=false)
+  vm = activate(machine)
+  result = func(vm)
   if delete
     remove!(machine)
   end
@@ -19,4 +23,4 @@ function activate(func::Function, machine::Machine; delete=false, halt=false)
   result
 end
 
-activate(machine::Machine) = MachineEnv(machine, config(machine))
+activate(machine::AbstractMachine) = MachineEnv(machine, config(machine))
