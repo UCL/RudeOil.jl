@@ -75,9 +75,26 @@ function dockerfile(image::BuildImage)
       result *= "RUN apt-get install -y $packages \\\n    && $ppas \\\n    && apt-get update\n"
     end
     if length(image.packages) > 0
-        let packages = [match(r"[^\( ]+", u).match for u in image.packages]
-          result = result *"RUN apt-get install -y $(join(packages, " "))\n"
+      packages = ""
+      regex = r"([a-z,A-Z,0-9,_,\-,+,\.]*)\s*(?:\(\s*((?:>|<|=)*)\s*([0-9,.,-,+]*)\s*\))?"
+      for package in image.packages
+        name, constraint, version = match(regex, package).captures
+        if is(name, nothing) || length(name) == 0
+          error("Could not determine name of package")
         end
+        if (!is(version, nothing)) && length(version) > 0
+          if is(constraint, nothing)
+            packages *= " " * name * "=" * version
+          elseif constraint == "==" || constraint == "="
+            packages *= " " * name * "=" * version
+          else
+            packages *= " " * name
+          end
+        else
+          packages *= " " * name
+        end
+      end
+      result = result *"RUN apt-get install -y $packages\n"
     end
     if length(image.pips) > 0
         result = result * "RUN pip install $(join(image.pips, " "))\n"
