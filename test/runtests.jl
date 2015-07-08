@@ -6,13 +6,13 @@ import Base: ismatch
 ismatch(regex::String) = x -> ismatch(Regex(regex), x)
 contains(item) = x -> item ∈ x
 
-include("machine.jl")
+#= include("machine.jl") =#
 
-const machine = Machine("ThisIsARUDEOILTestMachineThatShouldNotExist")
+const machine = Machine("TemporaryRUDEOILTestMachine")
 try
   # Use same machine for all tests.
   # Cos takes time to create
-  startoff(machine)
+  start_machine(machine)
 
   include("env.jl")
   include("image.jl")

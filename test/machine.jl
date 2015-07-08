@@ -2,7 +2,7 @@ facts("Create and activate a virtual machine") do
   vm = Machine("ThisIsARUDEOILTestMachineThatShouldNotExist2"; docreate=false)
   try
     @fact exists(vm) => false
-    startoff(vm)
+    start_machine(vm)
     @fact exists(vm) => true
 
     config = RudeOil.config(vm)
