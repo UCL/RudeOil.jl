@@ -21,7 +21,8 @@ facts("Images") do
     end
     context("packages") do
       pic = image("that", packages=["pack", "age"])
-      @fact dockerfile(pic) => ismatch("RUN apt-get install -y pack age")
+      match = "RUN\\s+apt-get\\s+install\\s+-y\\s+pack\\s+age"
+      @fact dockerfile(pic) => ismatch(match)
     end
     context("pips") do
       pic = image("that", pips=["pack", "age"])
