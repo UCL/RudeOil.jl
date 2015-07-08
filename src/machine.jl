@@ -1,4 +1,4 @@
-export Machine, exists, startoff, remove!
+export Machine, exists, start_machine, remove!
 
 abstract AbstractMachine
 
@@ -54,7 +54,7 @@ function exists(machine::AbstractMachine)
     end
 end
 
-function startoff(machine::AbstractMachine)
+function start_machine(machine::AbstractMachine)
   if exists(machine)
     run(`$docker_machine start $(machine.name)`)
   else
@@ -63,7 +63,7 @@ function startoff(machine::AbstractMachine)
   activate_impl(machine)
 end
 
-activate_impl(machine::AbstractMachine) = run(`$docker_machine active $(machine.name)`)
+activate_impl(machine::AbstractMachine)= run(`$docker_machine start $(machine.name)`)
 
 function remove!(machine::AbstractMachine)
   if exists(machine)
