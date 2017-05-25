@@ -1,3 +1,5 @@
+This package is no longer maintained
+
 # RudeOil
 
 Crude package to easily interact with docker and docker-machine. This package is meant to be make
